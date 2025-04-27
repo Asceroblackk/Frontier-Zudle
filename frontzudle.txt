@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini Inazudle Mejorado 2.2</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 30px; background: linear-gradient(to bottom, #87ceeb, #ffffff); }
+        input, button { padding: 10px; margin: 5px; font-size: 16px; border-radius: 5px; }
+        table { margin: 20px auto; border-collapse: collapse; width: 80%; }
+        th, td { padding: 8px 12px; border: 1px solid #ccc; }
+        .green { background-color: #8fce00; color: white; }
+        .yellow { background-color: #ffd966; }
+        .gray { background-color: #d9d9d9; }
+        #stats { margin-top: 20px; }
+        .result { margin-top: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<h1>Mini Inazudle Mejorado</h1>
+<p>Adivina el jugador de Inazuma Eleven (máximo 6 intentos)</p>
+
+<input type="text" id="guessInput" placeholder="Escribe un jugador..." list="playersList">
+<datalist id="playersList"></datalist>
+<button onclick="checkGuess()">Adivinar</button>
+<button onclick="restartGame()">🔄 Reiniciar partida</button>
+
+<div class="result" id="result"></div>
+<table id="resultsTable">
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>Club</th>
+            <th>Posición</th>
+            <th>Afinidad</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<div id="stats">
+    <h2>Estadísticas</h2>
+    <p id="gamesPlayed">Partidas jugadas: 0</p>
+    <p id="gamesWon">Partidas ganadas: 0</p>
+    <p id="gamesLost">Partidas perdidas: 0</p>
+</div>
+
+<script>
+const players = [
+    { name: "Mark Evans", position: "Portero", club: "Raimon", affinity: "Fuego" },
+    { name: "Axel Blaze", position: "Delantero", club: "Raimon", affinity: "Fuego" },
+    { name: "Jude Sharp", position: "Centrocampista", club: "Royal Academy", affinity: "Viento" },
+    { name: "Nathan Swift", position: "Defensa", club: "Raimon", affinity: "Viento" },
+    { name: "Shawn Froste", position: "Delantero", club: "Alpino", affinity: "Hielo" },
+    { name: "Kevin Dragonfly", position: "Delantero", club: "Raimon", affinity: "Bosque" },
+    { name: "Erik Eagle", position: "Centrocampista", club: "Kirkwood", affinity: "Aire" },
+    { name: "Bobby Shearer", position: "Defensa", club: "Kirkwood", affinity: "Montaña" },
+    { name: "Hurley Kane", position: "Delantero", club: "Alpino", affinity: "Montaña" },
+    { name: "Jack Wallside", position: "Defensa", club: "Raimon", affinity: "Montaña" },
+    { name: "Tod Ironside", position: "Portero", club: "Royal Academy", affinity: "Bosque" },
+    { name: "Sam Kincaid", position: "Centrocampista", club: "Royal Academy", affinity: "Viento" },
+    { name: "Paul Peabody", position: "Defensa", club: "Raimon", affinity: "Bosque" },
+    { name: "Maxwell Carson", position: "Delantero", club: "Raimon", affinity: "Aire" },
+    { name: "Darren LaChance", position: "Portero", club: "Alpino", affinity: "Hielo" },
+    { name: "Gouenji Shuuya", position: "Delantero", club: "Raimon", affinity: "Fuego" },
+    { name: "Fubuki Shirou", position: "Delantero", club: "Inazuma Japan", affinity: "Nieve" },
+    { name: "Tachimukai Yuuki", position: "Portero", club: "Inazuma Japan", affinity: "Viento" },
+    { name: "Kogure Kyohei", position: "Defensa", club: "Raimon", affinity: "Fuego" },
+    { name: "Ichihara Kyouko", position: "Centrocampista", club: "Ooze", affinity: "Aire" },
+    { name: "Tenma Matsukaze", position: "Delantero", club: "Inazuma Japan", affinity: "Fuego" },
+    { name: "Aki Shimizu", position: "Centrocampista", club: "Inazuma Japan", affinity: "Viento" },
+    { name: "Kageyama Hiroto", position: "Defensa", club: "Inazuma Japan", affinity: "Oscuridad" },
+    { name: "Rika Kawai", position: "Defensa", club: "Inazuma Japan", affinity: "Luz" },
+    { name: "Touko Takeda", position: "Delantero", club: "Kirin", affinity: "Fuego" },
+    { name: "Zack", position: "Centrocampista", club: "Ooze", affinity: "Aire" },
+    { name: "Shindou Takuto", position: "Delantero", club: "Inazuma Japan", affinity: "Fuego" },
+    { name: "Tsubasa Ozora", position: "Delantero", club: "Tokyo", affinity: "Viento" },
+    { name: "Karin", position: "Defensa", club: "Inazuma Japan", affinity: "Agua" },
+    { name: "Gouenji Shuuya", position: "Delantero", club: "Inazuma Japan", affinity: "Fuego" },
+    { name: "Hiroto Kageyama", position: "Defensa", club: "Inazuma Japan", affinity: "Oscuridad" }
+];
+
+// Cargar jugadores en el datalist
+const datalist = document.getElementById("playersList");
+players.forEach(p => {
+    const option = document.createElement("option");
+    option.value = p.name;
+    datalist.appendChild(option);
+});
+
+let answer = players[Math.floor(Math.random() * players.length)];
+let attempts = 0;
+const maxAttempts = 6;
+
+// Cargar estadísticas desde localStorage
+let stats = {
+    gamesPlayed: parseInt(localStorage.getItem('gamesPlayed')) || 0,
+    gamesWon: parseInt(localStorage.getItem('gamesWon')) || 0,
+    gamesLost: parseInt(localStorage.getItem('gamesLost')) || 0,
+};
+
+function updateStatsDisplay() {
+    document.getElementById("gamesPlayed").textContent = `Partidas jugadas: ${stats.gamesPlayed}`;
+    document.getElementById("gamesWon").textContent = `Partidas ganadas: ${stats.gamesWon}`;
+    document.getElementById("gamesLost").textContent = `Partidas perdidas: ${stats.gamesLost}`;
+}
+
+updateStatsDisplay();
+
+function checkGuess() {
+    if (attempts >= maxAttempts) return;
+
+    const guess = document.getElementById("guessInput").value.trim();
+    const resultDiv = document.getElementById("result");
+    const tableBody = document.getElementById("resultsTable").querySelector("tbody");
+
+    const player = players.find(p => p.name.toLowerCase() === guess.toLowerCase());
+
+    if (!player) {
+        resultDiv.innerHTML = "⚠️ Jugador no encontrado.";
+        return;
+    }
+
+    const row = document.createElement("tr");
+    
+    row.innerHTML = `
+        <td class="${getClass(player.name, answer.name)}">${player.name}</td>
+        <td class="${getClass(player.club, answer.club)}">${player.club}</td>
+        <td class="${getClass(player.position, answer.position)}">${player.position}</td>
+        <td class="${getClass(player.affinity, answer.affinity)}">${player.affinity}</td>
+    `;
+
+    tableBody.appendChild(row);
+
+    attempts++;
+
+    if (player.name === answer.name) {
+        resultDiv.innerHTML = "🎉 ¡Has adivinado al jugador en " + attempts + " intento(s)!";
+        stats.gamesPlayed++;
+        stats.gamesWon++;
+        saveStats();
+        updateStatsDisplay();
+    } else if (attempts >= maxAttempts) {
+        resultDiv.innerHTML = "❌ Se acabaron los intentos. El jugador era " + answer.name + ".";
+        stats.gamesPlayed++;
+        stats.gamesLost++;
+        saveStats();
+        updateStatsDisplay();
+    }
+
+    document.getElementById("guessInput").value = "";
+}
+
+function saveStats() {
+    localStorage.setItem('gamesPlayed', stats.gamesPlayed);
+    localStorage.setItem('gamesWon', stats.gamesWon);
+    localStorage.setItem('gamesLost', stats.gamesLost);
+}
+
+function getClass(value, correctValue) {
+    if (value === correctValue) return "green";
+    if (value && typeof value === "string" && correctValue && value.split(" ")[0] === correctValue.split(" ")[0]) return "yellow";
+    return "gray";
+}
+
+function restartGame() {
+    attempts = 0;
+    answer = players[Math.floor(Math.random() * players.length)];
+    document.getElementById("result").innerHTML = "";
+    document.getElementById("guessInput").value = "";
+    document.getElementById("resultsTable").querySelector("tbody").innerHTML = "";
+}
+</script>
+
+</body>
+</html>
